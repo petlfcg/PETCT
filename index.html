@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informes PET/CT</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1e2333;
+    --border: #2a3045;
+    --accent: #4fc3f7;
+    --accent2: #81d4fa;
+    --text: #e8eaf0;
+    --text-muted: #7a85a0;
+    --success: #4caf82;
+    --warn: #f0a040;
+    --red: #ef5350;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(79,195,247,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,195,247,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 1;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(15,17,23,0.85);
+    backdrop-filter: blur(8px);
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #1565c0);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  header h1 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+
+  header span {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 300;
+    margin-left: 4px;
+  }
+
+  .badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(79,195,247,0.1);
+    border: 1px solid rgba(79,195,247,0.25);
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    height: calc(100vh - 65px);
+  }
+
+  /* ── LEFT PANEL ── */
+  .panel-left {
+    padding: 28px 32px;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .optional-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(122,133,160,0.15);
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 14px 16px;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  textarea::placeholder { color: var(--text-muted); font-size: 13px; }
+
+  textarea:focus {
+    border-color: rgba(79,195,247,0.5);
+    box-shadow: 0 0 0 3px rgba(79,195,247,0.07);
+  }
+
+  #ctx { min-height: 90px; }
+  #hallazgos { min-height: 220px; }
+  #conclusiones { min-height: 100px; }
+
+  /* API key row */
+  .api-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .api-row label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+
+  .api-row input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+
+  .api-row input::placeholder { color: #3a4255; }
+
+  .eye-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 15px;
+    padding: 2px;
+    transition: color 0.2s;
+  }
+  .eye-btn:hover { color: var(--accent); }
+
+  /* Model selector */
+  .model-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .model-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+
+  .model-btn.active {
+    border-color: rgba(79,195,247,0.5);
+    background: rgba(79,195,247,0.08);
+    color: var(--accent);
+  }
+
+  /* Generate button */
+  .btn-generate {
+    width: 100%;
+    padding: 14px;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, #1565c0, #0288d1);
+    color: #fff;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    letter-spacing: 0.2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-generate:hover {
+    background: linear-gradient(135deg, #1976d2, #039be5);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(79,195,247,0.2);
+  }
+
+  .btn-generate:active { transform: translateY(0); }
+
+  .btn-generate:disabled {
+    background: var(--surface2);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-generate .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── RIGHT PANEL ── */
+  .panel-right {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .output-header {
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+  }
+
+  .output-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    flex: 1;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+  .status-dot.active { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .status-dot.loading { background: var(--warn); box-shadow: 0 0 6px var(--warn); animation: pulse 1s infinite; }
+  .status-dot.error { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .btn-copy {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-copy:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(79,195,247,0.05);
+  }
+
+  .btn-copy.copied {
+    border-color: var(--success);
+    color: var(--success);
+  }
+
+  .btn-clear {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .btn-clear:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .output-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px;
+  }
+
+  /* Informe rendered */
+  .informe {
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text);
+  }
+
+  .informe h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-family: var(--mono);
+    margin: 24px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(79,195,247,0.2);
+  }
+
+  .informe h2:first-child { margin-top: 0; }
+
+  .informe h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin: 14px 0 6px;
+  }
+
+  .informe p { margin-bottom: 8px; }
+
+  .informe ul {
+    list-style: none;
+    padding: 0;
+    margin: 6px 0 12px;
+  }
+
+  .informe ul li {
+    padding: 4px 0 4px 16px;
+    position: relative;
+    color: var(--text);
+  }
+
+  .informe ul li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-size: 11px;
+    top: 5px;
+  }
+
+  .informe ol {
+    padding-left: 20px;
+    margin: 6px 0 12px;
+  }
+
+  .informe ol li { padding: 3px 0; }
+
+  /* Tabla */
+  .informe table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+
+  .informe th {
+    background: rgba(79,195,247,0.08);
+    color: var(--accent);
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    border: 1px solid var(--border);
+  }
+
+  .informe td {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: top;
+  }
+
+  .informe tr:nth-child(even) td { background: rgba(30,35,51,0.5); }
+
+  /* Empty state */
+  .empty-state {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    opacity: 0.35;
+    user-select: none;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    filter: grayscale(1);
+  }
+
+  .empty-state p {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .error-msg {
+    background: rgba(239,83,80,0.1);
+    border: 1px solid rgba(239,83,80,0.3);
+    border-radius: 8px;
+    padding: 16px;
+    color: #ef9a9a;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    main {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+    .panel-left { border-right: none; border-bottom: 1px solid var(--border); }
+    .panel-right { min-height: 60vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🫀</div>
+  <h1>PET/CT Informes <span>· Medicina Nuclear</span></h1>
+  <div class="badge">GROQ · LLAMA</div>
+</header>
+
+<main>
+  <!-- LEFT: INPUT -->
+  <div class="panel-left">
+
+    <!-- API Key -->
+    <div>
+      <div class="section-label">API Key (Groq)</div>
+      <div class="api-row">
+        <label>gsk_···</label>
+        <input type="password" id="apikey" placeholder="Pega aquí tu Groq API key (gsk_...)" autocomplete="off">
+        <button class="eye-btn" onclick="toggleKey()" title="Mostrar/ocultar">👁</button>
+      </div>
+    </div>
+
+    <!-- Modelo -->
+    <div>
+      <div class="section-label">Modelo</div>
+      <div class="model-row">
+        <button class="model-btn active" onclick="setModel(this,'llama-3.3-70b-versatile')">Llama 3.3 70B <br><span style="font-size:9px;opacity:0.6">recomendado</span></button>
+        <button class="model-btn" onclick="setModel(this,'llama-3.1-8b-instant')">Llama 3.1 8B <br><span style="font-size:9px;opacity:0.6">más rápido</span></button>
+        <button class="model-btn" onclick="setModel(this,'mixtral-8x7b-32768')">Mixtral 8x7B <br><span style="font-size:9px;opacity:0.6">alternativa</span></button>
+      </div>
+    </div>
+
+    <!-- Contexto clínico -->
+    <div>
+      <div class="section-label">Contexto clínico <span class="optional-tag">OPCIONAL</span></div>
+      <textarea id="ctx" placeholder="Edad, diagnóstico de base, motivo del estudio, información relevante del clínico solicitante…"></textarea>
+    </div>
+
+    <!-- Hallazgos -->
+    <div>
+      <div class="section-label">Hallazgos</div>
+      <textarea id="hallazgos" placeholder="Distribución de la FDG, adenopatías hipermetabólicas, lesiones, SUVmax, correlación TC…"></textarea>
+    </div>
+
+    <!-- Conclusiones previas -->
+    <div>
+      <div class="section-label">Conclusiones / Recomendaciones <span class="optional-tag">OPCIONAL</span></div>
+      <textarea id="conclusiones" placeholder="Si lo dejas vacío, la IA las genera. Si escribes algo, la IA lo mejora y estructura."></textarea>
+    </div>
+
+    <button class="btn-generate" id="btnGen" onclick="generar()">
+      Generar informe estructurado
+    </button>
+
+  </div>
+
+  <!-- RIGHT: OUTPUT -->
+  <div class="panel-right">
+    <div class="output-header">
+      <span class="output-title">Informe generado</span>
+      <div class="status-dot" id="statusDot"></div>
+      <button class="btn-clear" onclick="limpiarOutput()" title="Limpiar">Limpiar</button>
+      <button class="btn-copy" id="btnCopy" onclick="copiar()">Copiar</button>
+    </div>
+    <div class="output-body" id="outputBody">
+      <div class="empty-state">
+        <div class="empty-icon">🔬</div>
+        <p>Introduce los hallazgos y pulsa generar</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  let selectedModel = 'llama-3.3-70b-versatile';
+  let rawText = '';
+
+  function setModel(btn, model) {
+    document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedModel = model;
+  }
+
+  function toggleKey() {
+    const inp = document.getElementById('apikey');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  const SYSTEM_PROMPT = `Eres un médico especialista en Medicina Nuclear con amplia experiencia en la interpretación y redacción de informes PET/TC con 18F-FDG.
+
+Tu tarea es redactar o mejorar la sección de Conclusiones/Diagnóstico de un informe PET/TC de forma estructurada, precisa y clínicamente útil.
+
+ESTRUCTURA OBLIGATORIA del output:
+
+## CONCLUSIONES / DIAGNÓSTICO
+
+**[Título resumen conciso del hallazgo principal]**
+
+### Diagnóstico Principal
+[Diagnóstico más probable con grado de certeza. Si hay diagnóstico diferencial relevante, mencionarlo.]
+
+### Hallazgos Concluyentes
+
+**Lesión primaria / Foco principal** (si aplica)
+[Descripción con localización exacta, tamaño en mm y SUVmax. Menciona estructuras adyacentes afectadas si las hay.]
+
+**Afectación metastásica / Extensión** (si aplica)
+Organizada por sistemas. Para cada sistema:
+- Menciona TODAS las lesiones individualmente con su localización exacta, tamaño y SUVmax
+- No agrupes lesiones con frases vagas como "tamaños variables" o "múltiples lesiones"
+- Ejemplo correcto: "Segmento II: 26 mm, SUVmax 7,93 / Segmento V: 18 mm, SUVmax 8,5"
+- Ejemplo incorrecto: "múltiples lesiones hepáticas con SUVmax variables"
+
+**Hallazgos sin significado metastásico claro** (si aplica)
+- [Hallazgos indeterminados o benignos relevantes con su descripción]
+
+### Estadificación (solo si es estudio oncológico y los datos lo permiten)
+| Parámetro | Hallazgo |
+|-----------|----------|
+| T | ... |
+| N | ... |
+| M | ... |
+→ Estadio orientativo y subtipo si procede (ej: M1c si hay carcinomatosis peritoneal)
+
+IMPORTANTE sobre estadificación: proporciona SIEMPRE una estadificación orientativa basada en los hallazgos de imagen aunque no haya confirmación histológica. La estadificación por PET/TC es orientativa por definición. Nunca omitas esta sección en estudios oncológicos alegando falta de histología — eso no es clínicamente útil. Si hay metástasis evidentes en imagen, estadifica como M1 con el subtipo correspondiente.
+
+### Recomendaciones
+1. [Recomendación clínica concreta y específica — no genérica]
+2. [Si es neoplasia: mencionar confirmación histológica, estudio molecular relevante (RAS, BRAF, MSI/MMR, HER2 si aplica), pruebas complementarias de imagen, y comité multidisciplinar]
+3. [...]
+
+NORMAS ESTRICTAS:
+- Redacta en español médico formal
+- OBLIGATORIO: incluye todos los valores numéricos (tamaños, SUVmax) que aparezcan en los hallazgos, sin omitir ninguno
+- OBLIGATORIO: nombra cada lesión individualmente, nunca las agrupes de forma vaga
+- OBLIGATORIO: las recomendaciones deben ser específicas y clínicamente accionables, no genéricas
+- Si el usuario ya proporcionó conclusiones propias, mejóralas y estructúralas manteniendo el contenido esencial
+- Si no hay suficiente contexto clínico para estadificar, omite esa sección
+- No inventes hallazgos que no estén en el input
+- Si hay hallazgos que sugieren carcinomatosis peritoneal incipiente, menciónalo explícitamente aunque no haya captación incrementada de FDG`;
+
+  async function generar() {
+    const apiKey = document.getElementById('apikey').value.trim();
+    const ctx = document.getElementById('ctx').value.trim();
+    const hallazgos = document.getElementById('hallazgos').value.trim();
+    const conclusiones = document.getElementById('conclusiones').value.trim();
+
+    if (!apiKey) return showError('Introduce tu API key de Gemini.');
+    if (!hallazgos) return showError('El campo Hallazgos es obligatorio.');
+
+    setLoading(true);
+
+    let userMsg = '';
+    if (ctx) userMsg += `CONTEXTO CLÍNICO:\n${ctx}\n\n`;
+    userMsg += `HALLAZGOS:\n${hallazgos}`;
+    if (conclusiones) userMsg += `\n\nCONCLUSIONES DEL RADIÓLOGO (mejorar y estructurar):\n${conclusiones}`;
+
+    const url = 'https://api.groq.com/openai/v1/chat/completions';
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userMsg }
+          ],
+          temperature: 0.3,
+          max_tokens: 2048
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `Error HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      rawText = data.choices?.[0]?.message?.content || '';
+      if (!rawText) throw new Error('Respuesta vacía de la API.');
+
+      renderOutput(rawText);
+      setStatus('active');
+    } catch (e) {
+      showError(e.message);
+      setStatus('error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderOutput(md) {
+    // Markdown → HTML básico
+    let html = md
+      // Tablas
+      .replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n?)*)/g, (_, header, rows) => {
+        const ths = header.split('|').filter(c => c.trim()).map(c => `<th>${c.trim()}</th>`).join('');
+        const trs = rows.trim().split('\n').map(row => {
+          const tds = row.split('|').filter(c => c.trim()).map(c => `<td>${c.trim()}</td>`).join('');
+          return `<tr>${tds}</tr>`;
+        }).join('');
+        return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+      })
+      // H2
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      // H3
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      // Bold
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      // Listas
+      .replace(/^[-•▸] (.+)$/gm, '<li>$1</li>')
+      .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+      // Párrafos
+      .replace(/\n{2,}/g, '</p><p>')
+      .replace(/^(?!<[hult])/gm, '')
+      // Wrap li
+      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+
+    // Wrap paragraphs que no son tags
+    html = '<div class="informe">' + html + '</div>';
+    document.getElementById('outputBody').innerHTML = html;
+  }
+
+  function copiar() {
+    if (!rawText) return;
+    navigator.clipboard.writeText(rawText).then(() => {
+      const btn = document.getElementById('btnCopy');
+      btn.textContent = '✓ Copiado';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function limpiarOutput() {
+    rawText = '';
+    document.getElementById('outputBody').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔬</div>
+        <p>Introduce los hallazgos y pulsa generar</p>
+      </div>`;
+    setStatus('');
+  }
+
+  function setLoading(on) {
+    const btn = document.getElementById('btnGen');
+    btn.disabled = on;
+    btn.innerHTML = on
+      ? '<span class="spinner"></span>Generando informe…'
+      : 'Generar informe estructurado';
+    if (on) setStatus('loading');
+  }
+
+  function setStatus(s) {
+    const dot = document.getElementById('statusDot');
+    dot.className = 'status-dot' + (s ? ' ' + s : '');
+  }
+
+  function showError(msg) {
+    document.getElementById('outputBody').innerHTML =
+      `<div class="error-msg">⚠️ ${msg}</div>`;
+    setStatus('error');
+  }
+
+  // Enter en textarea no envía (solo Ctrl+Enter)
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') generar();
+  });
+</script>
+
+</body>
+</html>
