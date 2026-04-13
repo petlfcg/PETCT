@@ -509,7 +509,7 @@
 <header>
   <div class="logo-icon">🫀</div>
   <h1>PET/CT Informes <span>· Medicina Nuclear</span></h1>
-  <div class="badge">GROQ · LLAMA</div>
+  <div class="badge">CLAUDE · SONNET</div>
 </header>
 
 <main>
@@ -518,10 +518,10 @@
 
     <!-- API Key -->
     <div>
-      <div class="section-label">API Key (Groq)</div>
+      <div class="section-label">API Key (Anthropic)</div>
       <div class="api-row">
-        <label>gsk_···</label>
-        <input type="password" id="apikey" placeholder="Pega aquí tu Groq API key (gsk_...)" autocomplete="off">
+        <label>sk-ant-···</label>
+        <input type="password" id="apikey" placeholder="Pega aquí tu Anthropic API key (sk-ant-...)" autocomplete="off">
         <button class="eye-btn" onclick="toggleKey()" title="Mostrar/ocultar">👁</button>
       </div>
     </div>
@@ -530,9 +530,9 @@
     <div>
       <div class="section-label">Modelo</div>
       <div class="model-row">
-        <button class="model-btn active" onclick="setModel(this,'llama-3.3-70b-versatile')">Llama 3.3 70B <br><span style="font-size:9px;opacity:0.6">recomendado</span></button>
-        <button class="model-btn" onclick="setModel(this,'llama-3.1-8b-instant')">Llama 3.1 8B <br><span style="font-size:9px;opacity:0.6">más rápido</span></button>
-        <button class="model-btn" onclick="setModel(this,'mixtral-8x7b-32768')">Mixtral 8x7B <br><span style="font-size:9px;opacity:0.6">alternativa</span></button>
+        <button class="model-btn active" onclick="setModel(this,'claude-sonnet-4-5')">Sonnet 4.5 <br><span style="font-size:9px;opacity:0.6">recomendado</span></button>
+        <button class="model-btn" onclick="setModel(this,'claude-haiku-4-5-20251001')">Haiku 4.5 <br><span style="font-size:9px;opacity:0.6">más rápido</span></button>
+        <button class="model-btn" onclick="setModel(this,'claude-opus-4-5')">Opus 4.5 <br><span style="font-size:9px;opacity:0.6">más potente</span></button>
       </div>
     </div>
 
@@ -578,7 +578,7 @@
 </main>
 
 <script>
-  let selectedModel = 'llama-3.3-70b-versatile';
+  let selectedModel = 'claude-sonnet-4-5';
   let rawText = '';
 
   function setModel(btn, model) {
@@ -661,23 +661,23 @@ NORMAS ESTRICTAS:
     userMsg += `HALLAZGOS:\n${hallazgos}`;
     if (conclusiones) userMsg += `\n\nCONCLUSIONES DEL RADIÓLOGO (mejorar y estructurar):\n${conclusiones}`;
 
-    const url = 'https://api.groq.com/openai/v1/chat/completions';
+    const PROXY_URL = 'https://petct-proxy.lfcg3000.workers.dev';
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch(PROXY_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
           model: selectedModel,
+          max_tokens: 2048,
+          system: SYSTEM_PROMPT,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: userMsg }
-          ],
-          temperature: 0.3,
-          max_tokens: 2048
+          ]
         })
       });
 
@@ -687,7 +687,7 @@ NORMAS ESTRICTAS:
       }
 
       const data = await res.json();
-      rawText = data.choices?.[0]?.message?.content || '';
+      rawText = data.content?.[0]?.text || '';
       if (!rawText) throw new Error('Respuesta vacía de la API.');
 
       renderOutput(rawText);
